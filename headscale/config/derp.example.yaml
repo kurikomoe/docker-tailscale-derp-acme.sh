@@ -1,0 +1,14 @@
+regions:
+  900:
+    regionid: 900
+    regioncode: SH       # Location short
+    regionname: HeadCrab # Location Long
+    nodes:
+      - name: 900a
+        regionid: 900
+        hostname: example.com  # TODO: change this
+        ipv4: 1.2.3.4          # TODO: change this
+        stunport: 3478  # DO NOT CHANGE
+        stunonly: false
+        derpport: 3335  # DO NOT CHANGE
+        InsecureForTests: true  # Allow invalid certs

@@ -1,0 +1,109 @@
+x-dns: &dns
+  dns: [223.5.5.5, 1.1.1.1, ]
+
+services:
+  acme.sh:
+    image: neilpang/acme.sh
+    container_name: acme.sh
+    <<: *dns
+    network_mode: host
+    volumes:
+      - ${HEADSCALE_PATH:-./headscale}/run/acme.sh:/acme.sh
+    environment:
+      - CF_Account_ID=${CF_Account_ID}
+      - CF_Token=${CF_Token}
+      - DOMAIN=${DOMAIN}
+      - IPV4=${IPV4}
+      - IPV6=${IPV6}
+    command: >
+      daemon
+      --issue
+      --dns dns_cf
+      -d ${DOMAIN}
+      --server letsencrypt
+    stdin_open: true
+    tty: true
+    restart: no
+
+  headscale:
+    image: headscale/headscale
+    container_name: headscale
+    <<: *dns
+    restart: unless-stopped
+    depends_on:
+      caddy:
+        condition: service_started
+      acme.sh:
+        condition: service_started
+    ports:
+      - 3333:8443              # main http port
+      # - 3330:9090            # /metrics /debug
+    volumes:
+      - ${HEADSCALE_PATH:-./headscale}/config:/etc/headscale
+      - ${HEADSCALE_PATH:-./headscale}/lib:/var/lib/headscale
+      - ${HEADSCALE_PATH:-./headscale}/run:/var/run/tailscale
+      - ${HEADSCALE_PATH:-./headscale}/run/acme.sh/${DOMAIN}_ecc/fullchain.cer:/etc/keys/fullchain.cer
+      - ${HEADSCALE_PATH:-./headscale}/run/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key:/etc/keys/domain.key
+    command: serve
+    healthcheck:
+      test: ["CMD", "headscale", "configtest"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  derper:
+    image: fredliang/derper
+    <<: *dns
+    container_name: derper
+    restart: unless-stopped
+    depends_on:
+      headscale:
+        condition: service_healthy
+    ports:
+      - 0.0.0.0:3478:3478/udp   # public stun
+      - 3332:8081
+    environment:
+      - DERP_DOMAIN=${DOMAIN}
+      - DERP_ADDR=0.0.0.0:8081
+      - DERP_STUN=true
+      - DERP_STUN_PORT=3478
+      - DERP_VERIFY_CLIENTS=true
+      - DERP_VERIFY_CLIENT_URL=https://headscale:8443/verify
+    volumes:
+      - ${HEADSCALE_PATH:-./headscale}/run:/var/run/tailscale
+    healthcheck:
+      test: ["CMD-SHELL", "ls /var/run/tailscale/tailscaled.sock"]
+      retries: 0
+
+  caddy:
+    image: caddy
+    <<: *dns
+    container_name: caddy
+    restart: unless-stopped
+    environment:
+      - DOMAIN=${DOMAIN}
+    depends_on:
+      acme.sh:
+        condition: service_started
+    ports:
+      - 0.0.0.0:3334:3000
+      - 0.0.0.0:3335:3001
+      - 3336:8080
+    volumes:
+      - ${HEADSCALE_PATH:-./headscale}/config:/etc/caddy
+      - ${HEADSCALE_PATH:-./headscale}/run/acme.sh/${DOMAIN}_ecc/fullchain.cer:/etc/keys/fullchain.cer
+      - ${HEADSCALE_PATH:-./headscale}/run/acme.sh/${DOMAIN}_ecc/${DOMAIN}.key:/etc/keys/domain.key
+
+  headscale-ui:
+    image: ghcr.io/gurucomputing/headscale-ui:latest
+    restart: unless-stopped
+    <<: *dns
+    container_name: headscale-ui
+    depends_on:
+      headscale:
+        condition: service_healthy
+      derper:
+        condition: service_started
+    # ports:
+    # - 8443:8443
+    # - 8080:8080

@@ -1,0 +1,20 @@
+{
+  "Regions": {
+    "901": {
+      "RegionID": 901,
+      "RegionCode": "BJ",
+      "RegionName": "somestrangloc",
+      "Nodes": [
+// TODO: add your custom/third party derp server here
+//        {
+//          "Name": "somestrangederp",
+//          "RegionID": 901,
+//          "DERPPort": 1145140,
+//          "STUNPort": 1145141,
+//          "ipv4": "1.2.3.4",
+//          "InsecureForTests": true
+//        }
+      ]
+    }
+  }
+}

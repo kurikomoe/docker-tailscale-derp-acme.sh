@@ -1,0 +1,8 @@
+.env
+
+headscale/config/derpmap.json
+headscale/config/derp.yaml
+headscale/config/derp.yaml
+
+headscale/lib
+headscale/run

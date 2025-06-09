@@ -1,0 +1,27 @@
+{
+    admin off
+    auto_https disable_redirects
+}
+
+https://{$DOMAIN}:3000 {
+    tls /etc/keys/fullchain.cer /etc/keys/domain.key
+    reverse_proxy /web* http://headscale-ui:8080
+    reverse_proxy * https://headscale:8443 {
+        transport http {
+            tls
+            tls_insecure_skip_verify
+        }
+
+    }
+}
+
+# provide derpmap.json
+:8080 {
+    root * /etc/caddy/
+    file_server
+}
+
+https://{$DOMAIN}:3001 {
+    tls /etc/keys/fullchain.cer /etc/keys/domain.key
+    reverse_proxy * http://derper:8081
+}
